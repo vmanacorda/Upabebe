@@ -1,0 +1,275 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Listado de Productos a la Venta</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f9f9f9;
+      margin: 30px;
+    }
+    h1 {
+      text-align: center;
+    }
+    .volver {
+      margin-bottom: 20px;
+      text-align: center;
+    }
+    .volver button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      margin: 0 5px;
+    }
+    .filtro, .acciones {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .filtro input, .acciones input {
+      padding: 8px;
+      font-size: 16px;
+      width: 300px;
+      max-width: 90%;
+    }
+    .acciones button {
+      padding: 10px 20px;
+      font-size: 16px;
+      background-color: #2ecc71;
+      color: white;
+      border: none;
+      cursor: pointer;
+      margin-left: 10px;
+      border-radius: 4px;
+    }
+    .total {
+      text-align: center;
+      font-weight: bold;
+      margin-top: 20px;
+      font-size: 18px;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+
+    /* Login modal */
+    #loginModal {
+      position: fixed;
+      z-index: 9999;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: rgba(0,0,0,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    #loginModal > div {
+      background: white;
+      padding: 30px;
+      border-radius: 8px;
+      text-align: center;
+      width: 300px;
+    }
+    #loginModal input {
+      width: 90%;
+      padding: 8px;
+      margin: 8px 0;
+      font-size: 16px;
+    }
+    #loginModal button {
+      padding: 10px 20px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    #errorLogin {
+      color: red;
+      margin-top: 10px;
+      height: 18px;
+    }
+  </style>
+</head>
+<body>
+
+  <!-- Modal Login -->
+  <div id="loginModal">
+    <div>
+      <h2>Ingresar al Sistema</h2>
+      <input type="text" id="codigoAcceso" placeholder="Código de Acceso" />
+      <input type="password" id="contrasenaAcceso" placeholder="Contraseña" />
+      <button onclick="verificarAcceso()">Ingresar</button>
+      <p id="errorLogin"></p>
+    </div>
+  </div>
+
+  <!-- Contenido principal oculto hasta login -->
+  <div id="mainContent" style="display: none;">
+
+    <!-- Botones de navegación -->
+    <div class="volver">
+      <button onclick="window.location.href='stock.html'">Ir a Stock</button>
+      <button onclick="window.location.href='productos-vendidos.html'">Ir a Productos Vendidos</button>
+       <button onclick="window.location.href='resumen.html'">Ir a resumen</button>
+      <button onclick="cerrarSesion()">Cerrar sesión</button>
+    </div>
+
+    <h1>Productos a la Venta</h1>
+
+    <div class="filtro">
+      <input type="text" id="busqueda" placeholder="Buscar por producto o descripción" oninput="filtrarTabla()">
+    </div>
+
+    <div class="acciones">
+      <label>Fecha de Venta: <input type="date" id="fechaVenta"></label>
+      <button onclick="venderSeleccionados()">Vender productos seleccionados</button>
+    </div>
+
+    <table>
+      <thead>
+        <tr>
+          <th>✔</th>
+          <th>Producto</th>
+          <th>Talle</th>
+          <th>Descripción</th>
+          <th>Precio de Venta</th>
+        </tr>
+      </thead>
+      <tbody id="tablaVentas"></tbody>
+    </table>
+
+    <div class="total" id="totalSeleccionado">Total seleccionado: $0.00</div>
+
+  </div>
+
+  <script>
+    // Control de sesión
+    window.onload = function () {
+      const logueado = sessionStorage.getItem('logueado');
+      if (logueado === 'true') {
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        cargarProductos();
+      } else {
+        document.getElementById('loginModal').style.display = 'flex';
+        document.getElementById('mainContent').style.display = 'none';
+      }
+    };
+
+    function verificarAcceso() {
+      const codigo = document.getElementById('codigoAcceso').value;
+      const contrasena = document.getElementById('contrasenaAcceso').value;
+      if (codigo === 'gabriela' && contrasena === '16415912') {
+        sessionStorage.setItem('logueado', 'true');
+        document.getElementById('loginModal').style.display = 'none';
+        document.getElementById('mainContent').style.display = 'block';
+        cargarProductos();
+      } else {
+        document.getElementById('errorLogin').textContent = 'Código o contraseña incorrectos.';
+      }
+    }
+
+    function cerrarSesion() {
+      sessionStorage.removeItem('logueado');
+      location.reload();
+    }
+
+    let productos = [];
+    let productosFiltrados = [];
+
+    function cargarProductos() {
+      productos = JSON.parse(localStorage.getItem('productosStock')) || [];
+      productosFiltrados = [...productos];
+      renderizarTabla();
+    }
+
+    function renderizarTabla() {
+      const tbody = document.getElementById('tablaVentas');
+      tbody.innerHTML = '';
+
+      productosFiltrados.forEach((p, index) => {
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td><input type="checkbox" class="check-producto" data-index="${index}" data-precio="${p.precioVenta}" onchange="actualizarTotalSeleccionado()"></td>
+          <td>${p.producto}</td>
+          <td>${p.talle}</td>
+          <td>${p.descripcion}</td>
+          <td>$${p.precioVenta.toFixed(2)}</td>
+        `;
+        tbody.appendChild(fila);
+      });
+
+      actualizarTotalSeleccionado();
+    }
+
+    function filtrarTabla() {
+      const texto = document.getElementById('busqueda').value.trim().toLowerCase();
+      productosFiltrados = productos.filter(p =>
+        p.producto.toLowerCase().includes(texto) ||
+        p.descripcion.toLowerCase().includes(texto)
+      );
+      renderizarTabla();
+    }
+
+    function actualizarTotalSeleccionado() {
+      const checkboxes = document.querySelectorAll('.check-producto:checked');
+      let total = 0;
+      checkboxes.forEach(cb => {
+        total += parseFloat(cb.dataset.precio);
+      });
+      document.getElementById('totalSeleccionado').textContent =
+        `Total seleccionado: $${total.toFixed(2)}`;
+    }
+
+    function venderSeleccionados() {
+      const fechaVenta = document.getElementById('fechaVenta').value;
+      if (!fechaVenta) {
+        alert('Por favor seleccioná la fecha de venta.');
+        return;
+      }
+
+      const checkboxes = document.querySelectorAll('.check-producto:checked');
+      if (checkboxes.length === 0) {
+        alert('No seleccionaste ningún producto.');
+        return;
+      }
+
+      let productosVendidos = JSON.parse(localStorage.getItem('productosVendidos')) || [];
+
+      checkboxes.forEach(cb => {
+        const index = parseInt(cb.dataset.index);
+        const producto = productosFiltrados[index];
+
+        const realIndex = productos.findIndex(p =>
+          p.producto === producto.producto &&
+          p.talle === producto.talle &&
+          p.descripcion === producto.descripcion &&
+          p.precioVenta === producto.precioVenta
+        );
+
+        if (realIndex > -1) {
+          const vendido = { ...productos[realIndex], fechaVenta };
+          productosVendidos.push(vendido);
+          productos.splice(realIndex, 1);
+        }
+      });
+
+      localStorage.setItem('productosStock', JSON.stringify(productos));
+      localStorage.setItem('productosVendidos', JSON.stringify(productosVendidos));
+
+      alert('Productos vendidos registrados.');
+      location.reload();
+    }
+  </script>
+
+</body>
+</html>

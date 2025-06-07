@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <title>Resumen Financiero</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f5f5f5;
+    }
+    h1 {
+      text-align: center;
+    }
+    .resumen {
+      max-width: 700px;
+      margin: 0 auto;
+      background: white;
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+    .item {
+      display: flex;
+      justify-content: space-between;
+      margin: 10px 0;
+      font-size: 18px;
+    }
+    .item.total {
+      font-weight: bold;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    .filtros {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .filtros input {
+      padding: 8px;
+      font-size: 14px;
+      margin: 0 5px;
+    }
+    .extra-gastos {
+      margin-top: 30px;
+    }
+    input[type="number"], input[type="text"] {
+      padding: 5px;
+      width: 80%;
+      margin-bottom: 10px;
+    }
+    button {
+      padding: 8px 15px;
+      background-color: #3498db;
+      color: white;
+      border: none;
+      cursor: pointer;
+      border-radius: 4px;
+      margin-top: 10px;
+    }
+    ul {
+      margin-top: 10px;
+    }
+    li {
+      list-style: none;
+      margin: 5px 0;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+    }
+    table, th, td {
+      border: 1px solid #ccc;
+    }
+    th, td {
+      padding: 8px;
+      text-align: left;
+    }
+  </style>
+</head>
+<body>
+  <button onclick="window.location.href='index.html'">Volver al inicio</button>
+
+  <h1>Resumen Financiero</h1>
+
+  <div class="resumen">
+
+    <div class="filtros">
+      <label>Desde: <input type="date" id="fechaDesde"></label>
+      <label>Hasta: <input type="date" id="fechaHasta"></label>
+      <button onclick="calcularResumen()">Filtrar</button>
+      <button onclick="guardarResumen()">Guardar en tabla</button>
+    </div>
+
+    <div class="item"><span>Total de Compras:</span> <span id="totalCompras">$0.00</span></div>
+    <div class="item"><span>Total de Ingresos:</span> <span id="totalIngresos">$0.00</span></div>
+    <div class="item"><span>Gastos Extras:</span> <span id="totalExtras">$0.00</span></div>
+    <div class="item total"><span>Ganancia Neta:</span> <span id="gananciaNeta">$0.00</span></div>
+
+    <div class="extra-gastos">
+      <h3>Agregar gasto extra</h3>
+      <input type="text" id="nombreExtra" placeholder="Descripción">
+      <input type="number" id="montoExtra" placeholder="Monto ($)">
+      <button onclick="agregarGastoExtra()">Agregar</button>
+      <ul id="listaExtras"></ul>
+    </div>
+
+    <h3>Registros Guardados</h3>
+    <table id="tablaResumen">
+      <thead>
+        <tr>
+          <th>Total Compras</th>
+          <th>Total Ingresos</th>
+          <th>Gastos Extras</th>
+          <th>Ganancia Neta</th>
+          <th>Fecha</th>
+          <th>Acción</th>
+        </tr>
+      </thead>
+      <tbody></tbody>
+    </table>
+
+  </div>
+
+  <script>
+    let gastosExtras = JSON.parse(localStorage.getItem("gastosExtras")) || [];
+    let registrosGuardados = JSON.parse(localStorage.getItem("resumenFinanciero")) || [];
+
+    function parseFecha(fechaStr) {
+      return new Date(fechaStr + 'T00:00:00');
+    }
+
+    function calcularResumen() {
+      const desde = document.getElementById('fechaDesde').value;
+      const hasta = document.getElementById('fechaHasta').value;
+
+      const desdeDate = desde ? parseFecha(desde) : null;
+      const hastaDate = hasta ? parseFecha(hasta) : null;
+
+      const productosVendidos = JSON.parse(localStorage.getItem('productosVendidos')) || [];
+
+      const filtrados = productosVendidos.filter(p => {
+        if (!p.fechaVenta) return false;
+        const fecha = new Date(p.fechaVenta);
+        if (desdeDate && fecha < desdeDate) return false;
+        if (hastaDate && fecha > hastaDate) return false;
+        return true;
+      });
+
+      const totalCompra = filtrados.reduce((acc, p) => acc + (p.precioCompra || 0), 0);
+      const totalVenta = filtrados.reduce((acc, p) => acc + (p.precioVenta || 0), 0);
+      const totalExtras = gastosExtras.reduce((acc, g) => acc + g.monto, 0);
+      const ganancia = totalVenta - (totalCompra + totalExtras);
+
+      document.getElementById('totalCompras').textContent = `$${totalCompra.toFixed(2)}`;
+      document.getElementById('totalIngresos').textContent = `$${totalVenta.toFixed(2)}`;
+      document.getElementById('totalExtras').textContent = `$${totalExtras.toFixed(2)}`;
+      document.getElementById('gananciaNeta').textContent = `$${ganancia.toFixed(2)}`;
+
+      mostrarGastosExtras();
+    }
+
+    function agregarGastoExtra() {
+      const nombre = document.getElementById('nombreExtra').value.trim();
+      const monto = parseFloat(document.getElementById('montoExtra').value);
+
+      if (!nombre || isNaN(monto) || monto <= 0) {
+        alert('Por favor ingresá una descripción y un monto válido.');
+        return;
+      }
+
+      gastosExtras.push({ nombre, monto });
+      localStorage.setItem('gastosExtras', JSON.stringify(gastosExtras));
+
+      document.getElementById('nombreExtra').value = '';
+      document.getElementById('montoExtra').value = '';
+
+      calcularResumen();
+    }
+
+    function mostrarGastosExtras() {
+      const ul = document.getElementById('listaExtras');
+      ul.innerHTML = '';
+      gastosExtras.forEach(g => {
+        const li = document.createElement('li');
+        li.textContent = `${g.nombre}: $${g.monto.toFixed(2)}`;
+        ul.appendChild(li);
+      });
+    }
+
+    function guardarResumen() {
+      const compras = document.getElementById('totalCompras').textContent;
+      const ingresos = document.getElementById('totalIngresos').textContent;
+      const extras = document.getElementById('totalExtras').textContent;
+      const ganancia = document.getElementById('gananciaNeta').textContent;
+      const fecha = new Date().toLocaleString();
+
+      const nuevoRegistro = { compras, ingresos, extras, ganancia, fecha };
+      registrosGuardados.push(nuevoRegistro);
+      localStorage.setItem('resumenFinanciero', JSON.stringify(registrosGuardados));
+
+      renderizarTabla();
+
+      // Reset
+      gastosExtras = [];
+      localStorage.setItem('gastosExtras', JSON.stringify(gastosExtras));
+      document.getElementById('fechaDesde').value = '';
+      document.getElementById('fechaHasta').value = '';
+      document.getElementById('nombreExtra').value = '';
+      document.getElementById('montoExtra').value = '';
+      document.getElementById('totalCompras').textContent = `$0.00`;
+      document.getElementById('totalIngresos').textContent = `$0.00`;
+      document.getElementById('totalExtras').textContent = `$0.00`;
+      document.getElementById('gananciaNeta').textContent = `$0.00`;
+      mostrarGastosExtras();
+    }
+
+    function renderizarTabla() {
+      const tabla = document.getElementById('tablaResumen').getElementsByTagName('tbody')[0];
+      tabla.innerHTML = '';
+
+      registrosGuardados.forEach((r, index) => {
+        const fila = tabla.insertRow();
+        fila.insertCell(0).textContent = r.compras;
+        fila.insertCell(1).textContent = r.ingresos;
+        fila.insertCell(2).textContent = r.extras;
+        fila.insertCell(3).textContent = r.ganancia;
+        fila.insertCell(4).textContent = r.fecha;
+
+        const celdaBoton = fila.insertCell(5);
+        const btnEliminar = document.createElement('button');
+        btnEliminar.textContent = "Eliminar";
+        btnEliminar.onclick = () => eliminarRegistro(index);
+        celdaBoton.appendChild(btnEliminar);
+      });
+    }
+
+    function eliminarRegistro(index) {
+      registrosGuardados.splice(index, 1);
+      localStorage.setItem('resumenFinanciero', JSON.stringify(registrosGuardados));
+      renderizarTabla();
+    }
+
+    // Inicializar
+    renderizarTabla();
+    calcularResumen();
+  </script>
+</body>
+</html>

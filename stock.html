@@ -1,0 +1,307 @@
+<!DOCTYPE html> 
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>UPA BEBE IMPORTADOS</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f7f7f7;
+    }
+    h1 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin-top: 20px;
+      background-color: white;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    th:nth-child(10), td:nth-child(10) {
+      width: 80px;
+      white-space: nowrap;
+    }
+    input, button {
+      padding: 5px;
+      margin: 5px;
+    }
+    .form-group {
+      margin-bottom: 10px;
+    }
+    .container {
+      background-color: white;
+      padding: 20px;
+      border-radius: 5px;
+    }
+    .result {
+      font-weight: bold;
+      margin-top: 15px;
+      text-align: center;
+    }
+    #modalFechaVenta {
+      display: none;
+      position: fixed;
+      top: 30%;
+      left: 50%;
+      transform: translate(-50%, -30%);
+      background: white;
+      border: 1px solid #ccc;
+      padding: 20px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.3);
+      z-index: 1000;
+    }
+    .ganancia-fechas {
+      margin: 20px auto;
+      text-align: center;
+    }
+    .ganancia-fechas label {
+      margin: 0 10px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="mainContent">
+  <div>
+    <button onclick="window.location.href='productos-vendidos.html'">Ver Productos Vendidos</button>
+  </div>
+
+  <h1>Control de Stock</h1>
+
+  <div class="result" id="resultadoTotales"></div>
+
+  <div class="ganancia-fechas">
+    <h3>Calcular ganancia total entre fechas:</h3>
+    <label>Desde: <input type="date" id="fechaDesde" /></label>
+    <label>Hasta: <input type="date" id="fechaHasta" /></label>
+    <button onclick="calcularGananciaPorFechas()">Calcular</button>
+    <div class="result" id="resultadoGanancia" style="margin-top:10px;"></div>
+  </div>
+
+  <div style="text-align: center; margin-bottom: 20px;">
+    <button onclick="moverProductosVendidos()">Mover a Productos Vendidos</button>
+  </div>
+
+  <div class="form-group">
+    <input type="text" id="producto" placeholder="Producto" required />
+    <input type="text" id="talle" placeholder="Talle" required />
+    <input type="text" id="descripcion" placeholder="Descripción" required />
+    <input type="date" id="fechaCompra" required />
+    <input type="number" id="precioCompra" placeholder="Precio Compra" required />
+    <input type="number" id="precioVenta" placeholder="Precio Venta" required />
+    <button onclick="agregarProducto()">Agregar</button>
+  </div>
+
+  <div class="form-group">
+    <input type="text" id="filtroBusqueda" placeholder="Buscar por producto o descripción" oninput="filtrarProductos()" />
+  </div>
+
+  <table id="tabla">
+    <thead>
+      <tr>
+        <th>✔</th>
+        <th>Producto</th>
+        <th>Talle</th>
+        <th>Descripción</th>
+        <th>Fecha Compra</th>
+        <th>Precio Compra</th>
+        <th>Precio Venta</th>
+        <th>IVA (18%)</th>
+        <th>Ganancia</th>
+        <th>% Ganancia</th>
+        <th>Eliminar</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+</div>
+
+<div id="modalFechaVenta">
+  <h3>Seleccioná la fecha de venta</h3>
+  <input type="date" id="fechaVentaModal" />
+  <br /><br />
+  <button onclick="confirmarVenta()">Confirmar</button>
+  <button onclick="cerrarModal()">Cancelar</button>
+</div>
+
+<script>
+  window.onload = filtrarProductos;
+
+  let productos = JSON.parse(localStorage.getItem('productosStock')) || [];
+  let productosSeleccionados = [];
+
+  function actualizarTabla() {
+    document.getElementById('filtroBusqueda').value = '';
+    filtrarProductos();
+  }
+
+  function filtrarProductos() {
+    const filtro = document.getElementById('filtroBusqueda').value.trim().toLowerCase();
+    const tabla = document.querySelector('#tabla tbody');
+    tabla.innerHTML = '';
+
+    const productosFiltrados = productos.filter(p =>
+      p.producto.toLowerCase().includes(filtro) ||
+      p.descripcion.toLowerCase().includes(filtro)
+    );
+
+    productosFiltrados.forEach((p, index) => {
+      const fila = tabla.insertRow();
+
+      const checkboxCell = fila.insertCell(0);
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.className = 'seleccionado';
+      checkbox.dataset.index = productos.indexOf(p);
+      checkboxCell.appendChild(checkbox);
+
+      fila.insertCell(1).textContent = p.producto;
+      fila.insertCell(2).textContent = p.talle;
+      fila.insertCell(3).textContent = p.descripcion;
+      fila.insertCell(4).textContent = p.fechaCompra;
+      fila.insertCell(5).textContent = `$${p.precioCompra.toFixed(2)}`;
+      fila.insertCell(6).textContent = `$${p.precioVenta.toFixed(2)}`;
+      fila.insertCell(7).textContent = `$${p.iva.toFixed(2)}`;
+      fila.insertCell(8).textContent = `$${p.ganancia.toFixed(2)}`;
+
+      if (typeof p.porcentajeGanancia === 'undefined') {
+        p.porcentajeGanancia = (p.ganancia / p.precioCompra) * 100;
+      }
+      fila.insertCell(9).textContent = `${p.porcentajeGanancia.toFixed(2)}%`;
+
+      const eliminarCell = fila.insertCell(10);
+      const btnEliminar = document.createElement('button');
+      btnEliminar.textContent = 'Eliminar';
+      btnEliminar.style.backgroundColor = '#e74c3c';
+      btnEliminar.style.color = 'white';
+      btnEliminar.style.border = 'none';
+      btnEliminar.style.padding = '5px 10px';
+      btnEliminar.style.cursor = 'pointer';
+
+      btnEliminar.onclick = () => {
+        if (confirm(`¿Eliminar el producto "${p.producto}"?`)) {
+          const idx = productos.indexOf(p);
+          if (idx > -1) {
+            productos.splice(idx, 1);
+            localStorage.setItem('productosStock', JSON.stringify(productos));
+            filtrarProductos();
+          }
+        }
+      };
+
+      eliminarCell.appendChild(btnEliminar);
+    });
+
+    calcularTotales();
+  }
+
+  function agregarProducto() {
+    const producto = document.getElementById('producto').value.trim();
+    const talle = document.getElementById('talle').value.trim();
+    const descripcion = document.getElementById('descripcion').value.trim();
+    const fechaCompra = document.getElementById('fechaCompra').value;
+    const precioCompra = parseFloat(document.getElementById('precioCompra').value);
+    const precioVenta = parseFloat(document.getElementById('precioVenta').value);
+
+    if (!producto || !fechaCompra || isNaN(precioCompra) || isNaN(precioVenta) || !talle || !descripcion) {
+      alert('Por favor, complete todos los campos correctamente.');
+      return;
+    }
+
+    const iva = precioCompra * 0.18;
+    const ganancia = precioVenta - precioCompra - iva;
+    const porcentajeGanancia = (ganancia / precioCompra) * 100;
+
+    // Cambio aquí: agrego el producto al inicio del array para que aparezca primero en la tabla
+    productos.unshift({
+      producto,
+      talle,
+      descripcion,
+      fechaCompra,
+      precioCompra,
+      precioVenta,
+      iva,
+      ganancia,
+      porcentajeGanancia
+    });
+
+    localStorage.setItem('productosStock', JSON.stringify(productos));
+    actualizarTabla();
+
+    document.getElementById('producto').value = '';
+    document.getElementById('talle').value = '';
+    document.getElementById('descripcion').value = '';
+    document.getElementById('fechaCompra').value = '';
+    document.getElementById('precioCompra').value = '';
+    document.getElementById('precioVenta').value = '';
+  }
+
+  function calcularTotales() {
+    const totalGanancia = productos.reduce((sum, p) => sum + p.ganancia, 0);
+    document.getElementById('resultadoTotales').textContent = `Ganancia Total: $${totalGanancia.toFixed(2)}`;
+  }
+
+  function calcularGananciaPorFechas() {
+    const desde = new Date(document.getElementById('fechaDesde').value);
+    const hasta = new Date(document.getElementById('fechaHasta').value);
+
+    if (isNaN(desde) || isNaN(hasta)) {
+      alert('Por favor, seleccione ambas fechas.');
+      return;
+    }
+
+    const ganancia = productos.reduce((sum, p) => {
+      const fecha = new Date(p.fechaCompra);
+      return fecha >= desde && fecha <= hasta ? sum + p.ganancia : sum;
+    }, 0);
+
+    document.getElementById('resultadoGanancia').textContent = `Ganancia entre fechas: $${ganancia.toFixed(2)}`;
+  }
+
+  function moverProductosVendidos() {
+    const checkboxes = document.querySelectorAll('.seleccionado:checked');
+    if (checkboxes.length === 0) {
+      alert('Seleccioná al menos un producto.');
+      return;
+    }
+
+    productosSeleccionados = Array.from(checkboxes).map(cb => parseInt(cb.dataset.index));
+    document.getElementById('modalFechaVenta').style.display = 'block';
+  }
+
+  function confirmarVenta() {
+    const fechaVenta = document.getElementById('fechaVentaModal').value;
+    if (!fechaVenta) {
+      alert('Seleccioná la fecha de venta.');
+      return;
+    }
+
+    let vendidos = JSON.parse(localStorage.getItem('productosVendidos')) || [];
+
+    // Importante: para evitar problemas al eliminar del array, ordeno indices descendente
+    productosSeleccionados.sort((a, b) => b - a).forEach(i => {
+      const producto = productos[i];
+      producto.fechaVenta = fechaVenta;
+      vendidos.push(producto);
+      productos.splice(i, 1);
+    });
+
+    localStorage.setItem('productosStock', JSON.stringify(productos));
+    localStorage.setItem('productosVendidos', JSON.stringify(vendidos));
+    document.getElementById('modalFechaVenta').style.display = 'none';
+    filtrarProductos();
+  }
+
+  function cerrarModal() {
+    document.getElementById('modalFechaVenta').style.display = 'none';
+  }
+</script>
+
+</body>
+</html>

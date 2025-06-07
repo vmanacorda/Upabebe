@@ -1,0 +1,179 @@
+<!DOCTYPE html>  
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <title>Productos Vendidos</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      margin: 30px;
+      background-color: #f7f7f7;
+    }
+    h1 {
+      text-align: center;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background-color: white;
+      margin-top: 20px;
+    }
+    th, td {
+      padding: 10px;
+      border: 1px solid #ccc;
+      text-align: center;
+    }
+    button {
+      margin-top: 15px;
+      padding: 8px 12px;
+      font-size: 16px;
+      cursor: pointer;
+    }
+    .filtros, .resultado-ganancia, .totales-globales {
+      text-align: center;
+      margin-top: 20px;
+      font-weight: bold;
+      font-size: 18px;
+    }
+    .btn-eliminar {
+      background-color: #e74c3c;
+      color: white;
+      border: none;
+      padding: 5px 10px;
+      cursor: pointer;
+    }
+    /* Opcional: columna % Ganancia más angosta */
+    th:nth-child(9), td:nth-child(9) {
+      width: 90px;
+      white-space: nowrap;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <button onclick="volverAStock()">← Volver a Stock</button>
+  </div>
+
+  <h1>Productos Vendidos</h1>
+
+  <div class="filtros">
+    <label>Desde: <input type="date" id="fechaDesde" /></label>
+    <label>Hasta: <input type="date" id="fechaHasta" /></label>
+    <button onclick="calcularGananciaPorFechas()">Calcular Totales por Fechas</button>
+  </div>
+
+  <div class="totales-globales" id="totalesGlobales"></div>
+  <div class="resultado-ganancia" id="resultadoGanancia"></div>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Producto</th>
+        <th>Fecha Compra</th>
+        <th>Fecha Venta</th>
+        <th>Precio Compra</th>
+        <th>Precio Venta</th>
+        <th>Talle</th>
+        <th>IVA (18%)</th>
+        <th>Ganancia</th>
+        <th>% Ganancia</th>
+        <th>Acción</th>
+      </tr>
+    </thead>
+    <tbody id="tablaVendidos"></tbody>
+  </table>
+
+  <script>
+    let productosVendidos = [];
+
+    function cargarTablaVendidos() {
+      productosVendidos = JSON.parse(localStorage.getItem('productosVendidos')) || [];
+      const tabla = document.getElementById('tablaVendidos');
+      tabla.innerHTML = '';
+
+      let totalCompra = 0;
+      let totalVenta = 0;
+      let gananciaTotal = 0;
+
+      productosVendidos.forEach((p, index) => {
+        const iva = p.precioCompra * 0.18;
+        const ganancia = p.precioVenta - p.precioCompra - iva;
+        const porcentajeGanancia = (ganancia / p.precioCompra) * 100;
+
+        totalCompra += p.precioCompra;
+        totalVenta += p.precioVenta;
+        gananciaTotal += ganancia;
+
+        const fila = document.createElement('tr');
+        fila.innerHTML = `
+          <td>${p.producto}</td>
+          <td>${p.fechaCompra}</td>
+          <td>${p.fechaVenta}</td>
+          <td>$${p.precioCompra.toFixed(2)}</td>
+          <td>$${p.precioVenta.toFixed(2)}</td>
+          <td>${p.talle}</td>
+          <td>$${iva.toFixed(2)}</td>
+          <td>$${ganancia.toFixed(2)}</td>
+          <td>${porcentajeGanancia.toFixed(2)}%</td>
+          <td><button class="btn-eliminar" onclick="eliminarProducto(${index})">Eliminar</button></td>
+        `;
+        tabla.insertBefore(fila, tabla.firstChild); // Aquí insertamos la fila al inicio para que quede arriba
+      });
+
+      document.getElementById('resultadoGanancia').textContent = '';
+      document.getElementById('totalesGlobales').textContent =
+        `TOTAL GENERAL — Precio Compra: $${totalCompra.toFixed(2)} | Precio Venta: $${totalVenta.toFixed(2)} | Ganancia: $${gananciaTotal.toFixed(2)}`;
+    }
+
+    function eliminarProducto(index) {
+      if (confirm('¿Estás seguro de que querés eliminar este producto?')) {
+        productosVendidos.splice(index, 1);
+        localStorage.setItem('productosVendidos', JSON.stringify(productosVendidos));
+        cargarTablaVendidos();
+      }
+    }
+
+    function calcularGananciaPorFechas() {
+      const desdeStr = document.getElementById('fechaDesde').value;
+      const hastaStr = document.getElementById('fechaHasta').value;
+
+      if (!desdeStr || !hastaStr) {
+        alert('Por favor selecciona ambas fechas.');
+        return;
+      }
+
+      const desde = new Date(desdeStr);
+      const hasta = new Date(hastaStr);
+
+      if (desde > hasta) {
+        alert('La fecha "Desde" no puede ser mayor que la fecha "Hasta".');
+        return;
+      }
+
+      let gananciaTotal = 0;
+      let totalCompra = 0;
+      let totalVenta = 0;
+
+      productosVendidos.forEach(p => {
+        const fechaVenta = new Date(p.fechaVenta);
+        if (fechaVenta >= desde && fechaVenta <= hasta) {
+          const iva = p.precioCompra * 0.18;
+          const ganancia = p.precioVenta - p.precioCompra - iva;
+          gananciaTotal += ganancia;
+          totalCompra += p.precioCompra;
+          totalVenta += p.precioVenta;
+        }
+      });
+
+      document.getElementById('resultadoGanancia').textContent =
+        `➤ Entre ${desdeStr} y ${hastaStr} — Precio Compra: $${totalCompra.toFixed(2)} | Precio Venta: $${totalVenta.toFixed(2)} | Ganancia: $${gananciaTotal.toFixed(2)}`;
+    }
+
+    function volverAStock() {
+      window.location.href = 'index.html';
+    }
+
+    window.onload = cargarTablaVendidos;
+  </script>
+</body>
+</html>
