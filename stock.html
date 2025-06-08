@@ -166,7 +166,25 @@
       fila.insertCell(3).textContent = p.descripcion;
       fila.insertCell(4).textContent = p.fechaCompra;
       fila.insertCell(5).textContent = `$${p.precioCompra.toFixed(2)}`;
-      fila.insertCell(6).textContent = `$${p.precioVenta.toFixed(2)}`;
+      const precioVentaCell = fila.insertCell(6);
+const inputPrecioVenta = document.createElement('input');
+inputPrecioVenta.type = 'number';
+inputPrecioVenta.value = p.precioVenta.toFixed(2);
+inputPrecioVenta.style.width = '80px';
+inputPrecioVenta.onchange = () => {
+  const nuevoPrecio = parseFloat(inputPrecioVenta.value);
+  if (!isNaN(nuevoPrecio)) {
+    p.precioVenta = nuevoPrecio;
+    p.ganancia = p.precioVenta - p.precioCompra - p.iva;
+    p.porcentajeGanancia = (p.ganancia / p.precioCompra) * 100;
+    localStorage.setItem('productosStock', JSON.stringify(productos));
+    filtrarProductos(); // actualiza la tabla con los nuevos valores
+  } else {
+    alert('Precio de venta inválido');
+  }
+};
+precioVentaCell.appendChild(inputPrecioVenta);
+
       fila.insertCell(7).textContent = `$${p.iva.toFixed(2)}`;
       fila.insertCell(8).textContent = `$${p.ganancia.toFixed(2)}`;
 
