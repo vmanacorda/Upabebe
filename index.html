@@ -3,8 +3,6 @@
 <head>
   <meta charset="UTF-8">
   <title>Listado de Productos a la Venta</title>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js"></script>
   <style>
     body {
       font-family: Arial, sans-serif;
@@ -150,26 +148,10 @@
     </table>
 
     <div class="total" id="totalSeleccionado">Total seleccionado: $0.00</div>
-    
 
   </div>
-  
 
   <script>
-    const firebaseConfig = {
-      apiKey: "AIzaSyDEo8PKOS6E1qlC72MK2uro6gIEaLFlr4U",
-      authDomain: "upabebe-86536.firebaseapp.com",
-      projectId: "upabebe-86536",
-      storageBucket: "upabebe-86536.appspot.com",
-      messagingSenderId: "939248975183",
-      appId: "1:939248975183:web:1f2da660f2f1274303993a",
-      measurementId: "G-G9BGPDY82J"
-    };
-
-    // Inicializar Firebase
-    const app = firebase.initializeApp(firebaseConfig);
-    const db = firebase.firestore();
-
     // Control de sesión
     window.onload = function () {
       const logueado = sessionStorage.getItem('logueado');
@@ -205,14 +187,17 @@
     let productosFiltrados = [];
 
     function cargarProductos() {
-      // Cargar productos de Firebase Firestore en lugar de localStorage
-      db.collection('productos').get().then(querySnapshot => {
-        productos = querySnapshot.docs.map(doc => doc.data());
-        productosFiltrados = [...productos];
-        renderizarTabla();
-      }).catch(error => {
-        console.error("Error al cargar productos: ", error);
-      });
+      // Cargar productos desde el archivo JSON
+      fetch('productos.json')
+        .then(response => response.json())
+        .then(data => {
+          productos = data;
+          productosFiltrados = [...productos];
+          renderizarTabla();
+        })
+        .catch(error => {
+          console.error("Error al cargar productos: ", error);
+        });
     }
 
     function renderizarTabla() {
@@ -274,26 +259,16 @@
 
         const vendido = { ...producto, fechaVenta };
 
-        // Enviar los productos vendidos a Firebase
-        db.collection('productosVendidos').add(vendido).then(() => {
-          console.log('Producto vendido registrado');
-        }).catch(error => {
-          console.error("Error al registrar producto vendido: ", error);
-        });
+        // Aquí deberías manejar cómo registrar la venta (guardar en archivo, base de datos, etc.)
 
-        // Eliminar producto de Firebase
-        db.collection('productos').doc(producto.id).delete().then(() => {
-          console.log('Producto eliminado del stock');
-        }).catch(error => {
-          console.error("Error al eliminar producto: ", error);
-        });
+        // Eliminar el producto vendido de la lista
+        productosFiltrados.splice(index, 1);
       });
 
       alert('Productos vendidos registrados.');
-      location.reload();
+      renderizarTabla();
     }
   </script>
-  
 </body>
 </html>
 
